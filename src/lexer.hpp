@@ -63,6 +63,8 @@ private:
         Color{ 0,   0,   0,   0   }  // Blank
     };
 
+    Color getTokenColor(TokenType tokenType);
+
     std::unordered_set<std::string> m_keywords[1] = {
         { "and", "as", "assert", "async", "continue", "else", "if", "not", "while", "def", "except", "import", "or", "with", "del", "finally", "in", "pass", "yield", "elif", "for", "is", "raise", "await", "False", "from", "lambda", "return", "break", "none", "global", "nonlocal", "try", "class", "True" }
     };

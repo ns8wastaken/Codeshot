@@ -5,11 +5,13 @@
 
 
 constexpr const char* fontPath = "src/fonts/JetBrains-Mono.ttf";
+// constexpr const char* fontPath = "src/fonts/Ancient-Medium.ttf";
+// constexpr const char* fontPath = "src/fonts/agenda-king.regular.ttf";
 
 
-int main()
+int main(int argc, char *argv[])
 {
-    InitWindow(800, 800, "Raylib Default Window");
+    InitWindow(800, 800, "Codeshot");
 
     std::string sourceCode = R"(def sieve(n: int):
     if n < 2:
@@ -25,6 +27,9 @@ int main()
         index += 1
 
     return l
+
+for x in range(10):
+    z = x
 
 print(sieve(200))
 print(f"chicken {sieve(20)}"))";

@@ -13,6 +13,12 @@ inline void Lexer::setLanguage(Language language)
 }
 
 
+inline Color Lexer::getTokenColor(TokenType tokenType)
+{
+    return tokenColors[static_cast<int>(tokenType)];
+}
+
+
 inline const std::unordered_set<std::string>& Lexer::getKeywords() const
 {
     return m_keywords[static_cast<size_t>(m_language)];
@@ -149,7 +155,7 @@ std::vector<Lexer::Token> Lexer::lex()
         }
 
         else {
-            tokens.push_back(Token{ std::string(1, current), TokenType::Unknown, tokenColors[static_cast<int>(TokenType::Unknown)] });
+            tokens.push_back(Token{ std::string(1, current), TokenType::Unknown, getTokenColor(TokenType::Unknown) });
             ++pos;
         }
     }
@@ -160,27 +166,29 @@ std::vector<Lexer::Token> Lexer::lex()
 
 void Lexer::render(const Font& font, const std::vector<Token>& tokens)
 {
-    float charWidth = MeasureTextEx(font, "A", font.baseSize, 0).x;
+    Vector2 spaceSize = MeasureTextEx(font, " ", font.baseSize, 0);
 
     float x = 0.0f;
     float y = 0.0f;
 
-    size_t src_i   = 0;
-    size_t token_i = 0;
+    size_t src_i      = 0;
+    size_t token_i    = 0;
+    size_t lineNumber = 0;
     while (src_i < m_source.size()) {
         if (std::isspace(m_source[src_i])) {
             switch (m_source[src_i]) {
                 case '\n': {
                     x = 0.0f;
-                    y += font.baseSize;
+                    y += spaceSize.y;
+                    ++lineNumber;
                 } break;
 
                 case ' ': {
-                    x += charWidth;
+                    x += spaceSize.x;
                 } break;
 
                 case '\t': {
-                    x += charWidth * 4;
+                    x += spaceSize.x * 4;
                 } break;
             }
 
@@ -188,8 +196,17 @@ void Lexer::render(const Font& font, const std::vector<Token>& tokens)
             continue;
         }
 
+        // Draw line numbers
+        // if (x == 0.0f) {
+        //     DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ x, y }, font.baseSize, 0, WHITE);
+        //     x += charWidth * 3;
+        // }
+
         const Lexer::Token& token = tokens[token_i];
 
+        // int codepointCount = 0;
+        // int* codepoints = LoadCodepoints(token.value.c_str(), &codepointCount);
+        // DrawTextCodepoints(font, codepoints, codepointCount, Vector2{ x, y }, font.baseSize, 0, token.color);
         DrawTextEx(font, token.value.c_str(), Vector2{ x, y }, font.baseSize, 0, token.color);
         x += MeasureTextEx(font, token.value.c_str(), font.baseSize, 0).x;
 
