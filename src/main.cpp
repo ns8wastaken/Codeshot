@@ -7,6 +7,7 @@
 constexpr const char* fontPath = "src/fonts/JetBrains-Mono.ttf";
 // constexpr const char* fontPath = "src/fonts/Ancient-Medium.ttf";
 // constexpr const char* fontPath = "src/fonts/agenda-king.regular.ttf";
+// constexpr const char* fontPath = "src/fonts/comic-sans.ttf";
 
 
 int main(int argc, char *argv[])
@@ -32,7 +33,7 @@ for x in range(10):
     z = x
 
 print(sieve(200))
-print(f"chicken {sieve(20)}"))";
+print(f"chicken \"yes\" {sieve(20)}"))";
 
     Lexer lexer;
 

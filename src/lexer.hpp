@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <math.h>
 
 
 class Lexer
@@ -16,15 +17,10 @@ private:
         Operator,
         Comment,
         String,
+        Space,
+        Tab,
+        Newline,
         Unknown
-    };
-
-    struct LanguageConfig
-    {
-        std::unordered_set<std::string> keywords;             // if, return, while
-        std::unordered_set<std::string> operators;            // +, -, +=
-        std::pair<std::string, std::string> multiLineComment; // "/*", "*/"
-        std::unordered_set<char> stringDelimiters;            // '"', '\''
     };
 
 public:
@@ -50,8 +46,10 @@ public:
 
 private:
     std::string m_source;
-    Language m_language = Language::Python;
-    size_t pos          = 0;
+    size_t m_lineCount       = 0;
+    size_t m_lineCountDigits = 0;
+    Language m_language      = Language::Python;
+    size_t m_pos             = 0;
 
     Color tokenColors[8] = {
         Color{ 0,   0,   255, 255 }, // Blue
@@ -65,11 +63,13 @@ private:
 
     Color getTokenColor(TokenType tokenType);
 
-    std::unordered_set<std::string> m_keywords[1] = {
+    const std::unordered_set<std::string> m_keywords[1] = {
+        // Python
         { "and", "as", "assert", "async", "continue", "else", "if", "not", "while", "def", "except", "import", "or", "with", "del", "finally", "in", "pass", "yield", "elif", "for", "is", "raise", "await", "False", "from", "lambda", "return", "break", "none", "global", "nonlocal", "try", "class", "True" }
     };
 
-    std::unordered_set<std::string> m_operators[1] = {
+    const std::unordered_set<std::string> m_operators[1] = {
+        // Python
         { "+", "-", "*", "/", "%", "=", "<", ">", "!", "&", "|", "^", "~", ">>", "<<", ".", ",", ":", ";", ":=", "<=", ">=", "[", "]", "{", "}", "(", ")", "+=", "-=", "*=", "/=", "//=", "**=", "%=", "&=", "|=", "^=", "~=", ">>=", "<<=" }
     };
 
@@ -77,7 +77,7 @@ private:
     const std::unordered_set<std::string>& getOperators() const;
 
     bool isKeyword(const std::string& value) const;
-    bool isOperator(const std::string& str) const;
+    bool isOperator(const std::string& value) const;
 
     Token readIdentifierOrKeyword();
     Token readNumber();
