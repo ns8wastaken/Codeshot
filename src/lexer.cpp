@@ -1,7 +1,7 @@
 #include "lexer.hpp"
 
 
-inline void Lexer::setSource(const std::string& source)
+inline void Lexer::setSource(const std::string source)
 {
     m_source = source;
 
@@ -27,25 +27,25 @@ inline Color Lexer::getTokenColor(TokenType tokenType)
 }
 
 
-inline const std::unordered_set<std::string>& Lexer::getKeywords() const
+inline const std::unordered_set<std::string_view>& Lexer::getKeywords() const
 {
     return m_keywords[static_cast<size_t>(m_language)];
 }
 
 
-inline const std::unordered_set<std::string>& Lexer::getOperators() const
+inline const std::unordered_set<std::string_view>& Lexer::getOperators() const
 {
     return m_operators[static_cast<size_t>(m_language)];
 }
 
 
-inline bool Lexer::isKeyword(const std::string& value) const
+inline bool Lexer::isKeyword(const std::string_view& value) const
 {
     return getKeywords().contains(value);
 }
 
 
-inline bool Lexer::isOperator(const std::string& str) const
+inline bool Lexer::isOperator(const std::string_view& str) const
 {
     return getOperators().contains(str);
 }
@@ -58,7 +58,7 @@ Lexer::Token Lexer::readIdentifierOrKeyword()
         ++m_pos;
     }
 
-    std::string value = m_source.substr(start, m_pos - start);
+    std::string_view value(m_source.c_str() + start, m_pos - start);
 
     if (isKeyword(value)) {
         return Token{ value, TokenType::Keyword, tokenColors[static_cast<int>(TokenType::Keyword)] };
@@ -85,14 +85,14 @@ Lexer::Token Lexer::readNumber()
         }
     }
 
-    return Token{ m_source.substr(start, m_pos - start), TokenType::Literal, tokenColors[static_cast<int>(TokenType::Literal)] }; // Number type
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::Literal, tokenColors[static_cast<int>(TokenType::Literal)] };
 }
 
 
 Lexer::Token Lexer::readString()
 {
-    char quoteType = m_source[m_pos++];
     size_t start   = m_pos;
+    char quoteType = m_source[m_pos++];
 
     while (m_source[m_pos] != quoteType && m_source[m_pos] != '\0') {
         if (m_source[m_pos] == '\\') {
@@ -103,7 +103,7 @@ Lexer::Token Lexer::readString()
     }
 
     ++m_pos; // Include the closing quote
-    return Token{ m_source.substr(start - 1, m_pos - start + 1), TokenType::String, tokenColors[static_cast<int>(TokenType::String)] };
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start + 1), TokenType::String, tokenColors[static_cast<int>(TokenType::String)] };
 }
 
 
@@ -115,19 +115,44 @@ Lexer::Token Lexer::readComment()
         ++m_pos;
     }
 
-    return Token{ m_source.substr(start, m_pos - start), TokenType::Comment, tokenColors[static_cast<int>(TokenType::Comment)] };
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::Comment, tokenColors[static_cast<int>(TokenType::Comment)] };
 }
 
 
 Lexer::Token Lexer::readOperator()
 {
-    std::string op(1, m_source[m_pos++]);
+    // size_t start = m_pos;
+    // std::string_view op(m_source.c_str() + start, (++m_pos) - start);
 
-    while (!op.empty() && isOperator(op + m_source[m_pos + 1])) {
-        op += m_source[m_pos++];
+    // while (!isOperator(op)) {
+    //     op = std::string_view(m_source.c_str() + start, (++m_pos) - start);
+    // }
+
+    return Token{ std::string_view(m_source.c_str() + (m_pos++), 1), TokenType::Operator, tokenColors[static_cast<int>(TokenType::Operator)] };
+}
+
+
+Lexer::Token Lexer::readSpaces()
+{
+    size_t start = m_pos;
+
+    while (m_source[m_pos] == ' ') {
+        ++m_pos;
     }
 
-    return Token{ op, TokenType::Operator, tokenColors[static_cast<int>(TokenType::Operator)] };
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::Space, getTokenColor(TokenType::Space) };
+}
+
+
+Lexer::Token Lexer::readTabs()
+{
+    size_t start = m_pos;
+
+    while (m_source[m_pos] == '\t') {
+        ++m_pos;
+    }
+
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::Space, getTokenColor(TokenType::Space) };
 }
 
 
@@ -139,16 +164,20 @@ std::vector<Lexer::Token> Lexer::lex()
         const char current = m_source[m_pos];
 
         if (std::isspace(current)) {
-            if (current == '\n')
-                tokens.push_back(Token{ "\n", TokenType::Newline, getTokenColor(TokenType::Newline) });
+            switch (current) {
+                case '\n': {
+                    tokens.push_back(Token{ "\n", TokenType::Newline, getTokenColor(TokenType::Newline) });
+                    ++m_pos;
+                } break;
 
-            else if (current == ' ')
-                tokens.push_back(Token{ " ", TokenType::Space, getTokenColor(TokenType::Space) });
+                case ' ': {
+                    tokens.push_back(readSpaces());
+                } break;
 
-            else if (current == '\t')
-                tokens.push_back(Token{ "\t", TokenType::Tab, getTokenColor(TokenType::Tab) });
-
-            ++m_pos; // Skip whitespace
+                case '\t': {
+                    tokens.push_back(readTabs());
+                } break;
+            }
         }
 
         else if (std::isalpha(current) || current == '_') {
@@ -167,12 +196,12 @@ std::vector<Lexer::Token> Lexer::lex()
             tokens.push_back(readComment());
         }
 
-        else if (isOperator(std::string(1, current))) {
+        else if (isOperator(std::string_view(m_source.c_str() + m_pos, 1))) {
             tokens.push_back(readOperator());
         }
 
         else {
-            tokens.push_back(Token{ std::string(1, current), TokenType::Unknown, getTokenColor(TokenType::Unknown) });
+            tokens.push_back(Token{ std::string_view(m_source.c_str() + m_pos, 1), TokenType::Unknown, getTokenColor(TokenType::Unknown) });
             ++m_pos;
         }
     }
@@ -196,7 +225,7 @@ void Lexer::render(const Font& font, const std::vector<Token>& tokens)
     // Draw line number
     DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ 0, y }, font.baseSize, 0, WHITE);
 
-    DrawLineV(Vector2{ (m_lineCountDigits * spaceSize.x) + (spaceSize.x / 2.0f), 0 }, Vector2{ (m_lineCountDigits * spaceSize.x) + (spaceSize.x / 2.0f), m_lineCount * spaceSize.y }, WHITE);
+    char buffer[256]; // because std::string_view is stupid and isnt null terminated
 
     for (const Token& token : tokens) {
         if (token.type == TokenType::Newline) {
@@ -208,8 +237,17 @@ void Lexer::render(const Font& font, const std::vector<Token>& tokens)
             DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ 0, y }, font.baseSize, 0, WHITE);
         }
 
-        DrawTextEx(font, token.value.c_str(), Vector2{ x, y }, font.baseSize, 0, token.color);
-        x += MeasureTextEx(font, token.value.c_str(), font.baseSize, 0).x;
+        if (token.value.size() < sizeof(buffer)) {
+            std::memcpy(buffer, token.value.data(), token.value.size());
+            buffer[token.value.size()] = '\0';
+        }
+        else {
+            std::memcpy(buffer, token.value.data(), sizeof(buffer) - 1);
+            buffer[sizeof(buffer) - 1] = '\0';
+        }
+
+        DrawTextEx(font, buffer, Vector2{ x, y }, font.baseSize, 0, token.color);
+        x += MeasureTextEx(font, buffer, font.baseSize, 0).x;
 
         ++token_i;
     }

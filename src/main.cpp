@@ -41,10 +41,7 @@ print(f"chicken \"yes\" {sieve(20)}"))";
     lexer.setLanguage(Lexer::Language::Python);
 
     std::vector<Lexer::Token> tokens = lexer.lex();
-
-    // for (const Lexer::Token& token : tokens) {
-    //     std::cout << token.value << " : " << static_cast<int>(token.color.r) << " " << static_cast<int>(token.color.g) << " " << static_cast<int>(token.color.b) << "\n";
-    // }
+    TraceLog(LOG_INFO, TextFormat("Token Count: %lld", tokens.size()));
 
     int fontSize = 25;
     Font font    = LoadFontEx(fontPath, fontSize, 0, 0);

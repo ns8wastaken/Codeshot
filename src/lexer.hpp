@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <vector>
 #include <math.h>
+#include <cstring>
 
 
 class Lexer
@@ -33,12 +34,12 @@ public:
 
     struct Token
     {
-        std::string value;
+        std::string_view value;
         TokenType type;
         Color color;
     };
 
-    void setSource(const std::string& sourceCode);
+    void setSource(const std::string sourceCode);
     void setLanguage(Language language);
 
     std::vector<Token> lex();
@@ -63,25 +64,27 @@ private:
 
     Color getTokenColor(TokenType tokenType);
 
-    const std::unordered_set<std::string> m_keywords[1] = {
+    const std::unordered_set<std::string_view> m_keywords[1] = {
         // Python
         { "and", "as", "assert", "async", "continue", "else", "if", "not", "while", "def", "except", "import", "or", "with", "del", "finally", "in", "pass", "yield", "elif", "for", "is", "raise", "await", "False", "from", "lambda", "return", "break", "none", "global", "nonlocal", "try", "class", "True" }
     };
 
-    const std::unordered_set<std::string> m_operators[1] = {
+    const std::unordered_set<std::string_view> m_operators[1] = {
         // Python
         { "+", "-", "*", "/", "%", "=", "<", ">", "!", "&", "|", "^", "~", ">>", "<<", ".", ",", ":", ";", ":=", "<=", ">=", "[", "]", "{", "}", "(", ")", "+=", "-=", "*=", "/=", "//=", "**=", "%=", "&=", "|=", "^=", "~=", ">>=", "<<=" }
     };
 
-    const std::unordered_set<std::string>& getKeywords() const;
-    const std::unordered_set<std::string>& getOperators() const;
+    const std::unordered_set<std::string_view>& getKeywords() const;
+    const std::unordered_set<std::string_view>& getOperators() const;
 
-    bool isKeyword(const std::string& value) const;
-    bool isOperator(const std::string& value) const;
+    bool isKeyword(const std::string_view& value) const;
+    bool isOperator(const std::string_view& value) const;
 
     Token readIdentifierOrKeyword();
     Token readNumber();
     Token readString();
     Token readComment();
     Token readOperator();
+    Token readSpaces();
+    Token readTabs();
 };
