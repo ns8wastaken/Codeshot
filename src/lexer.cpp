@@ -39,15 +39,53 @@ inline const std::unordered_set<std::string_view>& Lexer::getOperators() const
 }
 
 
+inline const std::unordered_set<std::string_view>& Lexer::getComments() const
+{
+    return m_comments[static_cast<size_t>(m_language)];
+}
+
+
 inline bool Lexer::isKeyword(const std::string_view& value) const
 {
     return getKeywords().contains(value);
 }
 
 
-inline bool Lexer::isOperator(const std::string_view& str) const
+inline bool Lexer::isOperator()
 {
-    return getOperators().contains(str);
+    size_t start = m_pos;
+    m_pos += 3;
+    std::string_view op(m_source.c_str() + start, m_pos - start);
+
+    while (!op.empty() && !getOperators().contains(op)) {
+        --m_pos;
+        op = std::string_view(m_source.c_str() + start, m_pos - start);
+    }
+    m_pos = start;
+
+    if (op.empty())
+        return false;
+
+    return true;
+}
+
+
+inline bool Lexer::isComment()
+{
+    size_t start = m_pos;
+    m_pos += 3;
+    std::string_view com(m_source.c_str() + start, m_pos - start);
+
+    while (!com.empty() && !getComments().contains(com)) {
+        --m_pos;
+        com = std::string_view(m_source.c_str() + start, m_pos - start);
+    }
+    m_pos = start;
+
+    if (com.empty())
+        return false;
+
+    return true;
 }
 
 
@@ -101,9 +139,9 @@ Lexer::Token Lexer::readString()
 
         ++m_pos;
     }
-
     ++m_pos; // Include the closing quote
-    return Token{ std::string_view(m_source.c_str() + start, m_pos - start + 1), TokenType::String, tokenColors[static_cast<int>(TokenType::String)] };
+
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::String, tokenColors[static_cast<int>(TokenType::String)] };
 }
 
 
@@ -121,14 +159,16 @@ Lexer::Token Lexer::readComment()
 
 Lexer::Token Lexer::readOperator()
 {
-    // size_t start = m_pos;
-    // std::string_view op(m_source.c_str() + start, (++m_pos) - start);
+    size_t start = m_pos;
+    m_pos += 3;
+    std::string_view op(m_source.c_str() + start, m_pos - start);
 
-    // while (!isOperator(op)) {
-    //     op = std::string_view(m_source.c_str() + start, (++m_pos) - start);
-    // }
+    while (!getOperators().contains(op)) {
+        --m_pos;
+        op = std::string_view(m_source.c_str() + start, m_pos - start);
+    }
 
-    return Token{ std::string_view(m_source.c_str() + (m_pos++), 1), TokenType::Operator, tokenColors[static_cast<int>(TokenType::Operator)] };
+    return Token{ op, TokenType::Operator, tokenColors[static_cast<int>(TokenType::Operator)] };
 }
 
 
@@ -152,7 +192,7 @@ Lexer::Token Lexer::readTabs()
         ++m_pos;
     }
 
-    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::Space, getTokenColor(TokenType::Space) };
+    return Token{ std::string_view(m_source.c_str() + start, m_pos - start), TokenType::Tab, getTokenColor(TokenType::Tab) };
 }
 
 
@@ -192,11 +232,11 @@ std::vector<Lexer::Token> Lexer::lex()
             tokens.push_back(readString());
         }
 
-        else if (current == '#') {
+        else if (isComment()) {
             tokens.push_back(readComment());
         }
 
-        else if (isOperator(std::string_view(m_source.c_str() + m_pos, 1))) {
+        else if (isOperator()) {
             tokens.push_back(readOperator());
         }
 
@@ -210,22 +250,22 @@ std::vector<Lexer::Token> Lexer::lex()
 }
 
 
-void Lexer::render(const Font& font, const std::vector<Token>& tokens)
+void Lexer::render(const Vector2& offset, const Font& font, const std::vector<Token>& tokens)
 {
     Vector2 spaceSize = MeasureTextEx(font, " ", font.baseSize, 0);
 
-    float xStart = (m_lineCountDigits + 1) * spaceSize.x;
+    float xStart = (m_lineCountDigits + 1) * spaceSize.x + offset.x;
 
     float x = xStart;
-    float y = 0.0f;
+    float y = offset.y;
 
     size_t token_i    = 0;
     size_t lineNumber = 1;
 
     // Draw line number
-    DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ 0, y }, font.baseSize, 0, WHITE);
+    DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ offset.x, y }, font.baseSize, 0, WHITE);
 
-    char buffer[256]; // because std::string_view is stupid and isnt null terminated
+    char textBuffer[256]; // because std::string_view is stupid and isnt null terminated
 
     for (const Token& token : tokens) {
         if (token.type == TokenType::Newline) {
@@ -234,20 +274,36 @@ void Lexer::render(const Font& font, const std::vector<Token>& tokens)
             ++lineNumber;
 
             // Draw line number
-            DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ 0, y }, font.baseSize, 0, WHITE);
+            DrawTextEx(font, TextFormat("%lld", lineNumber), Vector2{ offset.x, y }, font.baseSize, 0, WHITE);
         }
 
-        if (token.value.size() < sizeof(buffer)) {
-            std::memcpy(buffer, token.value.data(), token.value.size());
-            buffer[token.value.size()] = '\0';
+        // Put the string into textBuffer
+        if (token.value.size() < sizeof(textBuffer)) {
+            std::memcpy(textBuffer, token.value.data(), token.value.size());
+            textBuffer[token.value.size()] = '\0';
         }
         else {
-            std::memcpy(buffer, token.value.data(), sizeof(buffer) - 1);
-            buffer[sizeof(buffer) - 1] = '\0';
+            std::memcpy(textBuffer, token.value.data(), sizeof(textBuffer) - 1);
+            textBuffer[sizeof(textBuffer) - 1] = '\0';
         }
 
-        DrawTextEx(font, buffer, Vector2{ x, y }, font.baseSize, 0, token.color);
-        x += MeasureTextEx(font, buffer, font.baseSize, 0).x;
+        // Draw token
+        DrawTextEx(font, textBuffer, Vector2{ x, y }, font.baseSize, 0, token.color);
+
+        // Draw whitespace
+        if (token.type == TokenType::Space) {
+            for (size_t i = 0; i < token.value.size(); ++i)
+                DrawCircleV(Vector2{ x + i * spaceSize.x + spaceSize.x / 2.0f, y + spaceSize.y / 2.0f }, static_cast<float>(font.baseSize) / 10.0f, Color{ 255, 255, 255, 40 });
+        }
+        else if (token.type == TokenType::Tab) {
+            DrawLineV(
+                Vector2{ x + spaceSize.x / 2.0f, y + spaceSize.y / 2.0f },
+                Vector2{ x + spaceSize.x / 2.0f + spaceSize.x * token.value.size() * 3.0f + (token.value.size() - 1) * spaceSize.x, y + spaceSize.y / 2.0f },
+                Color{ 255, 255, 255, 40 }
+            );
+        }
+
+        x += token.type == TokenType::Tab ? spaceSize.x * 4 * token.value.size() : MeasureTextEx(font, textBuffer, font.baseSize, 0).x;
 
         ++token_i;
     }
