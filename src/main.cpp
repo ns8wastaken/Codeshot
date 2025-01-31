@@ -12,96 +12,26 @@ constexpr const char* fontPath = "src/fonts/JetBrains-Mono.ttf";
 
 int main(int argc, char* argv[])
 {
-    InitWindow(800, 800, "Codeshot");
+    Vector2 windowSize = { 800.0f, 800.0f };
+    InitWindow(static_cast<int>(windowSize.x), static_cast<int>(windowSize.y), "Codeshot");
 
-//     std::string sourceCode = R"(def sieve(n: int):
-// 	if n < 2:
-// 		return None
-
-// 	l = list(range(2, n+1))
-
-// 	index = 2
-// 	while index < l[-1]:
-// 		for i in l:
-// 			if i % index == 0 and i > index:
-// 				l.remove(i)
-// 		index += 1
-
-// 	return l
-
-// for x in range(10):
-// 	z = x
-
-// print(sieve(200))
-// print(f"chicken \"yes\" {sieve(20)}"))";
-
-    std::string sourceCode = R"(#include <iostream>
-using namespace std;
-
-const int MAXPOLY = 200;
-double EPSILON = 0.000001;
-
-struct Point
-{
-    double x, y;
-};
-
-struct Polygon
-{
-    Point p[MAXPOLY];
-    int n;
-
-    Polygon()
-    {
-        for (int i = 0; i < MAXPOLY; i++)
-            Point p[i];// = new Point();
-    }
-};
-
-double area(Polygon p)
-{
-    double total = 0;
-
-    for (int i = 0; i < p.n; i++)
-    {
-        int j = (i + 1) % p.n;
-        total += (p.p[i].x * p.p[j].y) - (p.p[j].x * p.p[i].y);
-    }
-
-    return total / 2;
-}
-
-int main(int argc, char **argv)
-{
-    Polygon p;
-
-    cout << "Enter the number of points in Polygon: ";
-    cin >> p.n;
-    cout << "Enter the coordinates of each point: <x> <y>";
-
-    for (int i = 0; i < p.n; i++)
-    {
-        cin >> p.p[i].x;
-        cin >> p.p[i].y;
-    }
-
-    double a = area(p);
-
-    if (a > 0) cout << "The Area of Polygon with " << (p.n)
-                    << " points using Slicker Algorithm is : "
-                    << a;
-
-    else cout << "The Area of Polygon with " << p.n
-              << " points using Slicker Algorithm is : "
-              << (a * -1);
-})";
+    std::string sourceCode = LoadFileText("src/lexer.cpp");
 
     Lexer lexer;
 
     lexer.setSource(sourceCode);
     lexer.setLanguage(Lexer::Language::Cpp);
 
-    std::vector<Lexer::Token> tokens = lexer.lex();
+    lexer.setColor(TokenType::Keyword, Color{ 255, 255, 0, 255 });
+    lexer.setColor(TokenType::Identifier, Color{ 255, 255, 255, 255 });
+    lexer.setColor(TokenType::Literal, Color{ 255, 100, 0, 255 });
+    lexer.setColor(TokenType::Operator, Color{ 255, 255, 255, 255 });
+    lexer.setColor(TokenType::Bracket, Color{ 255, 255, 255, 255 });
+    lexer.setColor(TokenType::CommentSingleLine, Color{ 120, 120, 120, 255 });
+    lexer.setColor(TokenType::String, Color{ 0, 255, 0, 255 });
+    // lexer.setBackgroundColor(Color{51, 51, 51, 255});
+
+    std::vector<Token> tokens = lexer.lex();
     TraceLog(LOG_INFO, TextFormat("Token Count: %lld", tokens.size()));
 
     int fontSize = 25;
@@ -109,27 +39,43 @@ int main(int argc, char **argv)
 
     Vector2 renderOffset = { 0, 0 };
 
+    Camera2D camera = {
+        .offset   = Vector2{ windowSize.x / 2, windowSize.y / 2 },
+        .target   = Vector2{ windowSize.x / 2, windowSize.y / 2 },
+        .rotation = 0.0f,
+        .zoom     = 1.0f
+    };
+
     while (!WindowShouldClose()) {
         float mouseWheelMove = GetMouseWheelMove();
 
         Vector2 mouseDelta = GetMouseDelta();
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            renderOffset.x += mouseDelta.x;
-            renderOffset.y += mouseDelta.y;
+            camera.target  = Vector2{ camera.target.x - mouseDelta.x / camera.zoom, camera.target.y - mouseDelta.y / camera.zoom };
         }
 
-        if (mouseWheelMove) {
-            fontSize += static_cast<int>(mouseWheelMove) * 2;
-            UnloadFont(font);
-            font = LoadFontEx(fontPath, fontSize, 0, 0);
+        camera.zoom += (mouseWheelMove * 0.2f * camera.zoom);
+
+        if (IsKeyPressed(KEY_R)) {
+            camera.zoom   = 1.0f;
+            camera.target = Vector2{ windowSize.x / 2.0f, windowSize.y / 2.0f };
         }
+
+        // if (mouseWheelMove) {
+        //     fontSize += static_cast<int>(mouseWheelMove) * 2;
+        //     UnloadFont(font);
+        //     font = LoadFontEx(fontPath, fontSize, 0, 0);
+        // }
 
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(Color{ 51, 51, 51, 255 });
 
-        lexer.render(renderOffset, font, tokens);
-        // DrawFPS(0, 0);
+        BeginMode2D(camera);
+        lexer.render(windowSize, font, tokens);
+        EndMode2D();
+
+        DrawFPS(0, 0);
 
         EndDrawing();
     }
